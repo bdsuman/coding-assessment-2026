@@ -31,6 +31,19 @@ class InvoiceCalculator {
     }
 
     /**
+     * Get normalized quantity from an item array.
+     */
+    public static function getQuantity(array $item) {
+        if (isset($item['quantity'])) {
+            return $item['quantity'];
+        }
+        if (isset($item['qty'])) {
+            return $item['qty'];
+        }
+        return 0;
+    }
+
+    /**
      * Get tax rate for a country/state combination
      *
      * FEATURE: Loads from tax_rates.json with intelligent fallback:
@@ -129,12 +142,18 @@ class InvoiceCalculator {
      */
     public static function calculateLineItem($item) {
         $price = $item['price'];
+        return $price * self::getQuantity($item);
+    }
 
-        // Handle both 'quantity' and 'qty' naming
-        // (Someone was inconsistent with naming)
-        $quantity = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
-
-        return $price * $quantity;
+    /**
+     * Calculate subtotal for an invoice.
+     */
+    public static function calculateSubtotal($invoice) {
+        $total = 0;
+        foreach ($invoice->getItems() as $item) {
+            $total += self::calculateLineItem($item);
+        }
+        return $total;
     }
 
     /**
@@ -191,7 +210,7 @@ class InvoiceCalculator {
             }
             
             // Check quantity (handle both 'qty' and 'quantity' keys)
-            $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
+            $qty = self::getQuantity($item);
             if (!isset($qty) || $qty <= 0) {
                 $errors[] = "Item $itemNum: quantity must be positive, got " . ($qty ?? 'missing');
             }

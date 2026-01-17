@@ -93,17 +93,17 @@ class PDFGenerator {
         foreach ($invoice->getItems() as $item) {
             $name = substr($item['name'], 0, 28);
             $price = number_format($item['price'], 2);
-            $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
-            $lineTotal = number_format($item['price'] * $qty, 2);
+            $qty = InvoiceCalculator::getQuantity($item);
+            $lineTotal = number_format(InvoiceCalculator::calculateLineItem($item), 2);
             
             $text .= str_pad($name, 29) . 
-                    str_pad('$' . $price, 9, ' ', STR_PAD_LEFT) .
-                    str_pad($qty, 4, ' ', STR_PAD_LEFT) .
-                    str_pad('$' . $lineTotal, 9, ' ', STR_PAD_LEFT) . "\n";
+                str_pad('$' . $price, 9, ' ', STR_PAD_LEFT) .
+                str_pad($qty, 4, ' ', STR_PAD_LEFT) .
+                str_pad('$' . $lineTotal, 9, ' ', STR_PAD_LEFT) . "\n";
         }
         
         // Totals
-        $subtotal = $this->calculateSubtotal($invoice);
+        $subtotal = InvoiceCalculator::calculateSubtotal($invoice);
         $tax = $invoice->getTotal() - $subtotal;
         $total = $invoice->getTotal();
         
@@ -219,18 +219,6 @@ class PDFGenerator {
     }
 
     /**
-     * Calculate subtotal before tax
-     */
-    private function calculateSubtotal($invoice) {
-        $total = 0;
-        foreach ($invoice->getItems() as $item) {
-            $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
-            $total += $item['price'] * $qty;
-        }
-        return $total;
-    }
-
-    /**
      * Generate unique filename for PDF
      *
      * Format: invoice_TIMESTAMP_INVOICEID.pdf
@@ -272,7 +260,7 @@ class PDFGenerator {
         $createdAt = htmlspecialchars($invoice->getCreatedAt());
         
         // Calculate subtotal and tax
-        $subtotal = $this->calculateSubtotal($invoice);
+        $subtotal = InvoiceCalculator::calculateSubtotal($invoice);
         $tax = $invoice->getTotal() - $subtotal;
         $total = $invoice->getTotal();
 
@@ -318,8 +306,8 @@ HTML;
         foreach ($invoice->getItems() as $item) {
             $name = htmlspecialchars($item['name']);
             $price = number_format($item['price'], 2);
-            $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
-            $lineTotal = number_format($item['price'] * $qty, 2);
+            $qty = InvoiceCalculator::getQuantity($item);
+            $lineTotal = number_format(InvoiceCalculator::calculateLineItem($item), 2);
 
             $html .= "<tr><td>$name</td><td>\$$price</td><td>$qty</td><td>\$$lineTotal</td></tr>";
         }
