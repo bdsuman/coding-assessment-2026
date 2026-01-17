@@ -16,19 +16,38 @@ class Invoice {
     private $createdAt;
 
     public function __construct($customerName) {
-        $this->customer = $customerName;
+        // VALIDATION: Customer name must not be empty
+        if (empty(trim($customerName))) {
+            throw new \InvalidArgumentException("Customer name cannot be empty");
+        }
+        
+        $this->customer = trim($customerName);
         $this->id = time(); // Not sure if this is the best approach...
         $this->createdAt = date('Y-m-d H:i:s');
     }
 
     /**
      * Add an item to the invoice
-     * Note: Make sure to use consistent naming!
+     * VALIDATION: Ensures item name is not empty, price and quantity are positive
      */
     public function addItem($name, $price, $quantity) {
-        // No validation yet - add later?
+        // VALIDATION: Item name must not be empty
+        if (empty(trim($name))) {
+            throw new \InvalidArgumentException("Item name cannot be empty");
+        }
+        
+        // VALIDATION: Price must be positive
+        if ($price <= 0) {
+            throw new \InvalidArgumentException("Item price must be greater than zero, got: $price");
+        }
+        
+        // VALIDATION: Quantity must be positive
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException("Item quantity must be greater than zero, got: $quantity");
+        }
+        
         $this->items[] = [
-            'name' => $name,
+            'name' => trim($name),
             'price' => $price,
             'qty' => $quantity  // Using 'qty' here
         ];
@@ -36,13 +55,13 @@ class Invoice {
 
     /**
      * Calculate total
-     * BUG: This doesn't match up with addItem() - need to fix
+     * FIXED: Changed from 'quantity' to 'qty' to match addItem() array key
      */
     public function getTotal() {
         $total = 0;
         foreach ($this->items as $item) {
-            // Accessing 'quantity' but we stored it as 'qty'!
-            $total += $item['price'] * $item['quantity'];
+            // FIX: Use 'qty' key to match addItem() storage (was incorrectly using 'quantity')
+            $total += $item['price'] * $item['qty'];
         }
         return $total - $this->discount;
     }
@@ -86,6 +105,13 @@ class Invoice {
     }
 
     /**
+     * Get invoice creation date/time
+     */
+    public function getCreatedAt() {
+        return $this->createdAt;
+    }
+
+    /**
      * Convert invoice to array for JSON serialization
      */
     public function toArray() {
@@ -101,18 +127,34 @@ class Invoice {
 
     /**
      * Save invoice to file
-     * FIXME: This overwrites everything! Need to fix but running out of time
-     * Should APPEND to the file, not replace it
+     * FIXED: Now appends to file instead of overwriting. Loads existing invoices, adds new one, writes back.
      */
     public function saveToFile($filename = 'data/invoices.json') {
         $data = $this->toArray();
-
-        // This is wrong - overwrites the whole file!
-        // Should load existing invoices and append
-        // But json_encode is easier for now...
-        file_put_contents($filename, json_encode($data, JSON_PRETTY_PRINT));
-
-        // TODO: Fix this before client demo!
+        
+        // FIX: Load existing invoices, append new one, write entire array
+        $invoices = [];
+        
+        // If file exists and has data, load existing invoices
+        if (file_exists($filename)) {
+            $contents = file_get_contents($filename);
+            if (!empty($contents)) {
+                $decoded = json_decode($contents, true);
+                // Handle both single invoice (object) and array of invoices
+                if (isset($decoded['id'])) {
+                    $invoices = [$decoded];
+                } else {
+                    $invoices = $decoded ?? [];
+                }
+            }
+        }
+        
+        // Add new invoice to array
+        $invoices[] = $data;
+        
+        // Write entire array back to file
+        file_put_contents($filename, json_encode($invoices, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        
         return true;
     }
 

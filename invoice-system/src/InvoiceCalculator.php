@@ -11,27 +11,78 @@ class InvoiceCalculator {
     /**
      * Calculate tax for an invoice
      *
-     * TODO: Load tax rates from data/tax_rates.json instead of hardcoding
-     * Currently just using 10% for everything which is WRONG
+     * FEATURE IMPLEMENTED: Dynamically loads tax rates from data/tax_rates.json
+     * Supports region-specific rates with fallback to country default
      *
      * @param float $subtotal The subtotal before tax
      * @param string $region Region code (e.g., "US-CA", "CA-ON")
      * @return float Tax amount
      */
     public static function calculateTax($subtotal, $region = 'US-CA') {
-        // TEMPORARY hardcoded value - need to load from JSON
-        // Client said tax rates change frequently so should be in config
-        $taxRate = 0.10;
+        // Parse region code: "COUNTRY-STATE" format
+        $parts = explode('-', $region);
+        $country = $parts[0] ?? 'US';
+        $state = $parts[1] ?? null;
 
-        // TODO: Load from tax_rates.json like this:
-        // $taxData = json_decode(file_get_contents('data/tax_rates.json'), true);
-        // Parse $region to get country and state
-        // Look up actual rate
-        // Handle default rates
-        //
-        // Ran out of time Friday, will fix Monday
+        // Load tax rates from configuration file
+        $taxRate = self::getTaxRate($country, $state);
 
         return $subtotal * $taxRate;
+    }
+
+    /**
+     * Get tax rate for a country/state combination
+     *
+     * FEATURE: Loads from tax_rates.json with intelligent fallback:
+     * 1. Try country-state specific rate (e.g., US-CA)
+     * 2. Fall back to country default
+     * 3. Fall back to global default (6%)
+     *
+     * @param string $country Country code (e.g., "US", "CA", "UK")
+     * @param string|null $state Optional state/province code
+     * @return float Tax rate as decimal (0.05 = 5%)
+     */
+    private static function getTaxRate($country, $state = null) {
+        $configFile = __DIR__ . '/../data/tax_rates.json';
+
+        // Validate file exists
+        if (!file_exists($configFile)) {
+            // Graceful fallback if config file missing
+            error_log("Warning: tax_rates.json not found, using default 6% rate");
+            return 0.06;
+        }
+
+        // Load and parse tax rates
+        $contents = file_get_contents($configFile);
+        $taxRates = json_decode($contents, true);
+
+        // Validate JSON parsing
+        if ($taxRates === null) {
+            error_log("Warning: Failed to parse tax_rates.json, using default 6% rate");
+            return 0.06;
+        }
+
+        // Validate country exists
+        if (!isset($taxRates[$country])) {
+            error_log("Warning: Country '$country' not found in tax_rates.json, using default 6% rate");
+            return 0.06;
+        }
+
+        $countryRates = $taxRates[$country];
+
+        // If state specified and exists, use state-specific rate
+        if ($state && isset($countryRates[$state])) {
+            return (float) $countryRates[$state];
+        }
+
+        // Fall back to country default rate
+        if (isset($countryRates['default'])) {
+            return (float) $countryRates['default'];
+        }
+
+        // Ultimate fallback: 6% global default
+        error_log("Warning: No default rate for country '$country', using 6% global default");
+        return 0.06;
     }
 
     /**
@@ -99,19 +150,52 @@ class InvoiceCalculator {
 
     /**
      * Validate invoice data
-     * Started but didn't finish
+     * FEATURE IMPLEMENTED: Complete validation of invoice integrity
      *
-     * Should check:
-     * - No negative prices
-     * - No negative quantities
-     * - Customer name not empty
-     * - At least one item
-     * - etc.
+     * Checks:
+     * - Invoice has at least one item
+     * - All prices are positive
+     * - All quantities are positive
+     * - Customer name is not empty
+     *
+     * @param Invoice $invoice Invoice to validate
+     * @return array Array of error messages (empty if valid)
      */
     public static function validateInvoice($invoice) {
         $errors = [];
 
-        // TODO: Add actual validation logic
+        // Check customer name
+        if (empty(trim($invoice->getCustomer()))) {
+            $errors[] = "Customer name cannot be empty";
+        }
+
+        // Check invoice has items
+        $items = $invoice->getItems();
+        if (empty($items)) {
+            $errors[] = "Invoice must have at least one item";
+            return $errors; // No point checking items if there are none
+        }
+
+        // Validate each item
+        foreach ($items as $index => $item) {
+            $itemNum = $index + 1;
+            
+            // Check item name
+            if (empty(trim($item['name'])) || $item['name'] !== trim($item['name'])) {
+                $errors[] = "Item $itemNum: name cannot be empty";
+            }
+            
+            // Check price
+            if (!isset($item['price']) || $item['price'] <= 0) {
+                $errors[] = "Item $itemNum: price must be positive, got " . ($item['price'] ?? 'missing');
+            }
+            
+            // Check quantity (handle both 'qty' and 'quantity' keys)
+            $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
+            if (!isset($qty) || $qty <= 0) {
+                $errors[] = "Item $itemNum: quantity must be positive, got " . ($qty ?? 'missing');
+            }
+        }
 
         return $errors;
     }

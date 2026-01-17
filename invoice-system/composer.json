@@ -1,0 +1,13 @@
+{
+    "name": "invoice-system/pdf-generator",
+    "description": "Invoice system with PDF generation",
+    "type": "project",
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "InvoiceSystem\\": "src/"
+        }
+    }
+}

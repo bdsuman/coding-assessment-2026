@@ -1,14 +1,15 @@
 <?php
 
 /**
- * Basic tests for Invoice system
+ * Invoice System Tests
  *
- * Note: Only had time to write basic tests
- * Need more coverage (edge cases, validation, error handling, etc.)
- * Some tests are failing - not sure if tests are wrong or code is wrong??
- *
+ * Test suite for invoice creation, calculation, storage, and PDF generation
+ * 
  * Run with: php run_tests.php
  */
+
+// Load composer dependencies for PDF generation
+require_once __DIR__ . '/../vendor/autoload.php';
 
 require_once __DIR__ . '/../src/Invoice.php';
 require_once __DIR__ . '/../src/InvoiceCalculator.php';
@@ -32,6 +33,10 @@ class InvoiceTest {
         $this->test_add_multiple_items();
         $this->test_save_and_load();
         $this->test_tax_calculation();
+        $this->test_dynamic_tax_rates();
+        $this->test_pdf_generation();
+        $this->test_pdf_content_generation();
+        $this->test_input_validation();
 
         echo "\n" . str_repeat("=", 50) . "\n";
         echo "Tests Passed: " . $this->testsPassed . "\n";
@@ -63,10 +68,7 @@ class InvoiceTest {
 
     /**
      * Test: Calculate total for single item
-     * Status: FAILING ✗
-     *
-     * This test fails because of the qty/quantity mismatch bug
-     * The total comes back as 0 instead of expected value
+     * Status: FIXED ✓
      */
     private function test_calculate_total() {
         $invoice = new Invoice("Test Customer");
@@ -84,9 +86,7 @@ class InvoiceTest {
 
     /**
      * Test: Add multiple items and calculate total
-     * Status: FAILING ✗
-     *
-     * Also fails due to the same qty/quantity bug
+     * Status: FIXED ✓
      */
     private function test_add_multiple_items() {
         $invoice = new Invoice("Test Customer");
@@ -106,10 +106,7 @@ class InvoiceTest {
 
     /**
      * Test: Save invoice to file and load it back
-     * Status: FAILING ✗
-     *
-     * Fails because saveToFile() overwrites the entire file
-     * When loading, it can't find the invoice because structure is wrong
+     * Status: FIXED ✓
      */
     private function test_save_and_load() {
         $testFile = __DIR__ . '/../data/test_invoices.json';
@@ -129,8 +126,7 @@ class InvoiceTest {
         $invoice2->addItem("Item B", 200.00, 1);
         $invoice2->saveToFile($testFile);
 
-        // Try to load first invoice - this will fail
-        // because saveToFile overwrites everything
+        // Try to load first invoice
         try {
             $loaded = Invoice::loadFromFile($invoice1->getId(), $testFile);
             $this->assert(
@@ -153,23 +149,91 @@ class InvoiceTest {
     }
 
     /**
-     * Test: Tax calculation
+     * Test: Tax calculation with dynamic rates
      * Status: PASSING ✓
-     *
-     * This works because the hardcoded tax rate is consistent
-     * (Even though it should load from JSON instead)
      */
     private function test_tax_calculation() {
         $subtotal = 100.00;
         $tax = InvoiceCalculator::calculateTax($subtotal, 'US-CA');
 
-        // Hardcoded to 10% currently
-        $expected = 10.00;
+        // Now dynamically loaded from tax_rates.json: US-CA = 7.25%
+        $expected = 7.25;
 
+        // Use approximate equality for floating point comparison
         $this->assert(
-            $tax === $expected,
+            abs($tax - $expected) < 0.001,
             "test_tax_calculation",
-            "Tax should be $10.00, got $" . number_format($tax, 2)
+            "Tax should be $7.25 (7.25%), got $" . number_format($tax, 2)
+        );
+    }
+
+    /**
+     * Test: Dynamic tax rate loading from tax_rates.json
+     * Status: PASSING ✓
+     */
+    private function test_dynamic_tax_rates() {
+        // Test 1: US-CA specific rate (7.25%)
+        $tax1 = InvoiceCalculator::calculateTax(100.00, 'US-CA');
+        $this->assert(
+            abs($tax1 - 7.25) < 0.001,
+            "test_dynamic_tax_rates (US-CA)",
+            "US-CA should be 7.25%, got $" . number_format($tax1, 2)
+        );
+
+        // Test 2: US-NY specific rate (8%)
+        $tax2 = InvoiceCalculator::calculateTax(100.00, 'US-NY');
+        $this->assert(
+            abs($tax2 - 8.00) < 0.001,
+            "test_dynamic_tax_rates (US-NY)",
+            "US-NY should be 8%, got $" . number_format($tax2, 2)
+        );
+
+        // Test 3: US default rate (6%) - state doesn't exist in config
+        $tax3 = InvoiceCalculator::calculateTax(100.00, 'US-XX');
+        $this->assert(
+            abs($tax3 - 6.00) < 0.001,
+            "test_dynamic_tax_rates (US default)",
+            "US default should be 6%, got $" . number_format($tax3, 2)
+        );
+
+        // Test 4: Canada-ON specific rate (13%)
+        $tax4 = InvoiceCalculator::calculateTax(100.00, 'CA-ON');
+        $this->assert(
+            abs($tax4 - 13.00) < 0.001,
+            "test_dynamic_tax_rates (CA-ON)",
+            "CA-ON should be 13%, got $" . number_format($tax4, 2)
+        );
+
+        // Test 5: Canada-AB specific rate (5%)
+        $tax5 = InvoiceCalculator::calculateTax(100.00, 'CA-AB');
+        $this->assert(
+            abs($tax5 - 5.00) < 0.001,
+            "test_dynamic_tax_rates (CA-AB)",
+            "CA-AB should be 5%, got $" . number_format($tax5, 2)
+        );
+
+        // Test 6: UK default rate (20%)
+        $tax6 = InvoiceCalculator::calculateTax(100.00, 'UK');
+        $this->assert(
+            abs($tax6 - 20.00) < 0.001,
+            "test_dynamic_tax_rates (UK)",
+            "UK should be 20%, got $" . number_format($tax6, 2)
+        );
+
+        // Test 7: EU-FR specific rate (20%)
+        $tax7 = InvoiceCalculator::calculateTax(100.00, 'EU-FR');
+        $this->assert(
+            abs($tax7 - 20.00) < 0.001,
+            "test_dynamic_tax_rates (EU-FR)",
+            "EU-FR should be 20%, got $" . number_format($tax7, 2)
+        );
+
+        // Test 8: EU-DE specific rate (19%)
+        $tax8 = InvoiceCalculator::calculateTax(100.00, 'EU-DE');
+        $this->assert(
+            abs($tax8 - 19.00) < 0.001,
+            "test_dynamic_tax_rates (EU-DE)",
+            "EU-DE should be 19%, got $" . number_format($tax8, 2)
         );
     }
 
@@ -186,9 +250,206 @@ class InvoiceTest {
             $this->failures[] = $testName . ": " . $message;
         }
     }
+
+    /**
+     * Test: PDF generation feature
+     * Status: PASSING ✓
+     */
+    private function test_pdf_generation() {
+        $invoice = new Invoice("Test Customer");
+        $invoice->addItem("Product A", 100.00, 1);
+        $invoice->addItem("Product B", 50.00, 2);
+
+        $generator = new PDFGenerator();
+        
+        try {
+            $filename = $generator->generatePDF($invoice);
+            
+            // Verify filename format
+            $isValidFilename = strpos($filename, 'invoice_') === 0 && 
+                              strpos($filename, '.pdf') !== false;
+            $this->assert(
+                $isValidFilename,
+                "test_pdf_generation (filename)",
+                "PDF filename should match pattern invoice_*.pdf, got: $filename"
+            );
+
+            // Verify file was created
+            $filepath = __DIR__ . '/../' . $filename;
+            $fileExists = file_exists($filepath);
+            $this->assert(
+                $fileExists,
+                "test_pdf_generation (file creation)",
+                "PDF file should exist at: $filepath"
+            );
+
+            // Verify PDF has content (magic bytes for PDF)
+            if ($fileExists) {
+                $content = file_get_contents($filepath);
+                $isPdf = strpos($content, '%PDF') === 0;
+                $this->assert(
+                    $isPdf,
+                    "test_pdf_generation (PDF magic bytes)",
+                    "File should be valid PDF with %PDF header"
+                );
+
+                // Clean up test file
+                unlink($filepath);
+            }
+        } catch (\Exception $e) {
+            $this->assert(
+                false,
+                "test_pdf_generation",
+                "PDF generation failed: " . $e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Test: PDF content generation (streaming)
+     * Status: PASSING ✓
+     */
+    private function test_pdf_content_generation() {
+        $invoice = new Invoice("Stream Test");
+        $invoice->addItem("Service", 250.00, 1);
+
+        $generator = new PDFGenerator();
+        
+        try {
+            $pdfContent = $generator->generatePDFContent($invoice);
+            
+            // Verify PDF content is binary data
+            $isPdf = strpos($pdfContent, '%PDF') === 0;
+            $this->assert(
+                $isPdf,
+                "test_pdf_content_generation (PDF magic)",
+                "PDF content should start with %PDF"
+            );
+
+            // Verify reasonable size
+            $size = strlen($pdfContent);
+            $isSizeValid = $size > 1000; // PDF should be at least 1KB
+            $this->assert(
+                $isSizeValid,
+                "test_pdf_content_generation (size)",
+                "PDF content should be reasonable size, got: $size bytes"
+            );
+        } catch (\Exception $e) {
+            $this->assert(
+                false,
+                "test_pdf_content_generation",
+                "PDF content generation failed: " . $e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Test: Input validation
+     * Status: PASSING ✓
+     */
+    private function test_input_validation() {
+        // Test 1: Empty customer name should throw exception
+        $exceptionThrown = false;
+        try {
+            $invoice = new Invoice("");
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (empty customer)",
+            "Empty customer name should throw InvalidArgumentException"
+        );
+
+        // Test 2: Empty item name should throw exception
+        $invoice = new Invoice("Valid Customer");
+        $exceptionThrown = false;
+        try {
+            $invoice->addItem("", 10.00, 1);
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (empty item name)",
+            "Empty item name should throw InvalidArgumentException"
+        );
+
+        // Test 3: Negative price should throw exception
+        $exceptionThrown = false;
+        try {
+            $invoice->addItem("Valid Item", -10.00, 1);
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (negative price)",
+            "Negative price should throw InvalidArgumentException"
+        );
+
+        // Test 4: Zero price should throw exception
+        $exceptionThrown = false;
+        try {
+            $invoice->addItem("Valid Item", 0, 1);
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (zero price)",
+            "Zero price should throw InvalidArgumentException"
+        );
+
+        // Test 5: Negative quantity should throw exception
+        $exceptionThrown = false;
+        try {
+            $invoice->addItem("Valid Item", 10.00, -5);
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (negative quantity)",
+            "Negative quantity should throw InvalidArgumentException"
+        );
+
+        // Test 6: Zero quantity should throw exception
+        $exceptionThrown = false;
+        try {
+            $invoice->addItem("Valid Item", 10.00, 0);
+        } catch (\InvalidArgumentException $e) {
+            $exceptionThrown = true;
+        }
+        $this->assert(
+            $exceptionThrown,
+            "test_input_validation (zero quantity)",
+            "Zero quantity should throw InvalidArgumentException"
+        );
+
+        // Test 7: validateInvoice() should detect missing items
+        $invoice2 = new Invoice("Another Customer");
+        $errors = InvoiceCalculator::validateInvoice($invoice2);
+        $hasMissingItemsError = count($errors) > 0 && strpos(implode(" ", $errors), "at least one item") !== false;
+        $this->assert(
+            $hasMissingItemsError,
+            "test_input_validation (validateInvoice - no items)",
+            "validateInvoice should detect invoice with no items"
+        );
+
+        // Test 8: validateInvoice() should pass for valid invoice
+        $validInvoice = new Invoice("Valid Customer");
+        $validInvoice->addItem("Valid Product", 50.00, 2);
+        $errors = InvoiceCalculator::validateInvoice($validInvoice);
+        $isValid = count($errors) === 0;
+        $this->assert(
+            $isValid,
+            "test_input_validation (validateInvoice - valid)",
+            "validateInvoice should pass for valid invoice, got errors: " . implode("; ", $errors)
+        );
+    }
 }
 
-// Don't auto-run if included by run_tests.php
 if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
     $test = new InvoiceTest();
     $success = $test->runAll();
