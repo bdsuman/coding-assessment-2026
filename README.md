@@ -1,6 +1,6 @@
 # Invoice System - Coding Assessment
 
-**Last Updated:** January 15, 2025
+**Last Updated:** January 17, 2026
 
 ## Quick Start
 
@@ -9,7 +9,7 @@
 php run_tests.php
 ```
 
-**Current Status:** 2 passing, 3 failing
+**Current Status:** 29 passing, 0 failing (php run_tests.php)
 
 ### Create Invoice (Example)
 ```php
@@ -26,7 +26,7 @@ echo "Total: $" . $invoice->getTotal() . "\n";
 ├── src/
 │   ├── Invoice.php           - Main invoice class
 │   ├── InvoiceCalculator.php - Tax and business logic helpers
-│   └── PDFGenerator.php      - PDF export (not implemented)
+│   └── PDFGenerator.php      - PDF export (pure PHP, no deps)
 ├── data/
 │   ├── invoices.json         - Stored invoices
 │   └── tax_rates.json        - Tax rate configuration
@@ -34,29 +34,18 @@ echo "Total: $" . $invoice->getTotal() . "\n";
     └── InvoiceTest.php       - Test suite
 ```
 
-## Known Issues
+## Implemented Features
 
-### Critical Bugs
-1. **Total calculation returns $0** - Check Invoice.php getTotal() method
-2. **File saving overwrites data** - saveToFile() doesn't append, replaces entire file
-3. **Data corruption** - invoices.json has malformed JSON around line 28-30
+- Fixed total calculation and file append logic
+- Dynamic tax loading from `data/tax_rates.json` with fallbacks
+- Pure-PHP PDF generation (valid PDF 1.4) plus HTML export
+- Input validation for customer and items; invoice integrity checks
+- Shared helpers for quantities/subtotals across PDF/HTML/validators
 
-### Non-Critical Issues
-- No input validation (negative prices/quantities not caught)
-- Invoice ID uses timestamp (collision risk under load)
-- Array key inconsistency in code ('qty' vs 'quantity')
+## Known Gaps
 
-## Incomplete Features
-
-### High Priority
-- **PDF Export:** PDFGenerator.php is not implemented. **UPDATE: Composer packages are now approved - you may use any PDF library (FPDF, TCPDF, Dompdf, etc.).**
-- **Tax Loading:** Currently hardcoded to 10%. Should load from `data/tax_rates.json`.
-- **Discount Logic:** applyDiscount() and applyBusinessRules() are incomplete. Requirements unclear.
-
-### Medium Priority
-- Input validation
-- Better invoice numbering system
-- Error handling
+- Discount rules still unspecified; applyDiscount/applyBusinessRules placeholders remain
+- Invoice ID still timestamp-based (collision risk under high load)
 
 
 ## Technical Decisions
@@ -65,32 +54,20 @@ echo "Total: $" . $invoice->getTotal() . "\n";
 - **PHP Version:** 7.4+ required
 - **Dependencies:** Composer packages now allowed for PDF generation (policy updated)
 
-## What's Working
+## Current Validation / Behavior
 
-✓ Invoice creation and basic operations
+✓ Invoice creation, add items, totals, save/load
 
-✓ Adding items to invoices
+✓ Dynamic tax calculations by region with defaults
 
-✓ Tax calculation (hardcoded rate)
+✓ PDF/HTML export without external dependencies
 
-✓ JSON serialization
-
-✓ Basic file loading/saving (has bugs)
-
-## What's Not Working
-
-✗ Total calculation (returns $0)
-✗ File append operation
-✗ PDF generation
-✗ Dynamic tax rate loading
-✗ Discount application
-✗ Input validation
+✓ Input validation and legacy qty/quantity compatibility
 
 ## Testing Notes
 
-- Tests in `tests/InvoiceTest.php`
-- 3 tests currently failing (expected: total calculation, save/load issues)
-- Need more test coverage for edge cases
+- Tests in `tests/InvoiceTest.php` (29 passing)
+- Edge cases include legacy `quantity` key and subtotal helper
 - Performance not tested with large datasets
 
 ## Configuration
@@ -108,16 +85,6 @@ Format:
 
 ## Summary
 
-1. Debug and fix total calculation
-2. Fix file saving to append instead of overwrite
-3. Repair JSON corruption in invoices.json
-4. Implement at least one incomplete feature
-5. Make decision on PDF approach
-6. Add validation
-
-## Improvements
-
-- Code style is inconsistent (mixed 'qty'/'quantity' naming)
-- Some methods have extensive comments explaining blockers
-- Tax calculation uses placeholder value
-- Invoice ID generation needs improvement for production use
+- Core bugs fixed (totals, file append, JSON data)
+- Implemented tax config, PDF export, validation, helper refactors
+- Remaining: discount rules + stronger ID generation

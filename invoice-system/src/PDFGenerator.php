@@ -136,6 +136,7 @@ class PDFGenerator {
         $pdf = "%PDF-1.4\n";
         
         // Object 1: Catalog (document root)
+        // Track byte offsets so the xref table points to the right locations
         $obj1Offset = strlen($pdf);
         $pdf .= "1 0 obj\n";
         $pdf .= "<< /Type /Catalog /Pages 2 0 R >>\n";
@@ -182,7 +183,7 @@ class PDFGenerator {
         $pdf .= "endstream\n";
         $pdf .= "endobj\n";
         
-        // Cross-reference table - maps object offsets
+        // Cross-reference table - maps object offsets calculated above
         $xrefOffset = strlen($pdf);
         $pdf .= "xref\n";
         $pdf .= "0 6\n"; // Start at object 0, count 6 objects

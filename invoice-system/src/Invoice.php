@@ -183,7 +183,7 @@ class Invoice {
                 $invoice->discount = $invoiceData['discount'];
 
                 foreach ($invoiceData['items'] as $item) {
-                    // This might break because of the qty/quantity issue
+                    // Accept both legacy 'quantity' and current 'qty' keys when rebuilding
                     $qty = isset($item['quantity']) ? $item['quantity'] : $item['qty'];
                     $invoice->addItem($item['name'], $item['price'], $qty);
                 }

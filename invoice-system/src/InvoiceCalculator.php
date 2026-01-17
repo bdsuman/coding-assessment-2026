@@ -32,6 +32,7 @@ class InvoiceCalculator {
 
     /**
      * Get normalized quantity from an item array.
+     * Returns 0 if neither key exists so callers can validate gracefully.
      */
     public static function getQuantity(array $item) {
         if (isset($item['quantity'])) {
@@ -149,6 +150,7 @@ class InvoiceCalculator {
      * Calculate subtotal for an invoice.
      */
     public static function calculateSubtotal($invoice) {
+        // Centralized subtotal so every caller (PDF, HTML, tests) uses identical math
         $total = 0;
         foreach ($invoice->getItems() as $item) {
             $total += self::calculateLineItem($item);

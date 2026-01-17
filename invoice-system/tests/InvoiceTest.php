@@ -37,6 +37,8 @@ class InvoiceTest {
         $this->test_pdf_generation();
         $this->test_pdf_content_generation();
         $this->test_input_validation();
+        $this->test_calculate_subtotal_helper();
+        $this->test_load_invoice_qty_mismatch();
 
         echo "\n" . str_repeat("=", 50) . "\n";
         echo "Tests Passed: " . $this->testsPassed . "\n";
@@ -447,6 +449,72 @@ class InvoiceTest {
             "test_input_validation (validateInvoice - valid)",
             "validateInvoice should pass for valid invoice, got errors: " . implode("; ", $errors)
         );
+    }
+
+    /**
+     * Test: Subtotal helper handles qty/quantity consistently
+     * Status: NEW
+     */
+    private function test_calculate_subtotal_helper() {
+        $invoice = new Invoice("Helper Test");
+        $invoice->addItem("Named Qty", 10.00, 2);
+
+        // Manually craft an item with 'quantity' to mimic legacy data
+        $legacyItem = ['name' => 'Legacy Qty', 'price' => 5.00, 'quantity' => 3];
+        $items = $invoice->getItems();
+        $items[] = $legacyItem;
+
+        // Override items for this test scenario
+        $reflection = new \ReflectionClass($invoice);
+        $prop = $reflection->getProperty('items');
+        $prop->setAccessible(true);
+        $prop->setValue($invoice, $items);
+
+        $subtotal = InvoiceCalculator::calculateSubtotal($invoice);
+        $this->assert(
+            abs($subtotal - 35.00) < 0.001,
+            "test_calculate_subtotal_helper",
+            "Subtotal helper should handle qty and quantity keys"
+        );
+    }
+
+    /**
+     * Test: loadFromFile handles legacy 'quantity' key
+     * Status: NEW (edge case previously failing due to qty/quantity mismatch)
+     */
+    private function test_load_invoice_qty_mismatch() {
+        $testFile = __DIR__ . '/../data/test_invoices_qty.json';
+
+        $legacyInvoice = [
+            'id' => 999999,
+            'customer' => 'Legacy Customer',
+            'items' => [
+                ['name' => 'Legacy Item', 'price' => 12.50, 'quantity' => 4]
+            ],
+            'discount' => 0,
+            'total' => 50.00,
+            'created_at' => '2024-01-01 00:00:00'
+        ];
+
+        file_put_contents($testFile, json_encode([$legacyInvoice], JSON_PRETTY_PRINT));
+
+        try {
+            $loaded = Invoice::loadFromFile(999999, $testFile);
+            $this->assert(
+                abs($loaded->getTotal() - 50.00) < 0.001,
+                "test_load_invoice_qty_mismatch (total)",
+                "Loaded invoice should preserve totals with legacy quantity key"
+            );
+            $this->assert(
+                count($loaded->getItems()) === 1,
+                "test_load_invoice_qty_mismatch (items)",
+                "Loaded invoice should contain one item"
+            );
+        } finally {
+            if (file_exists($testFile)) {
+                unlink($testFile);
+            }
+        }
     }
 }
 
