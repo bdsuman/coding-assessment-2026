@@ -255,7 +255,7 @@ class InvoiceTest {
     }
 
     /**
-     * Test: PDF generation feature
+     * Test: PDF generation with FPDF (saves to downloads/)
      * Status: PASSING ✓
      */
     private function test_pdf_generation() {
@@ -277,22 +277,22 @@ class InvoiceTest {
                 "PDF filename should match pattern invoice_*.pdf, got: $filename"
             );
 
-            // Verify file was created
-            $filepath = __DIR__ . '/../' . $filename;
+            // Verify file was created in downloads/
+            $filepath = __DIR__ . '/../downloads/' . $filename;
             $fileExists = file_exists($filepath);
             $this->assert(
                 $fileExists,
                 "test_pdf_generation (file creation)",
-                "PDF file should exist at: $filepath"
+                "PDF file should be saved to downloads/$filename"
             );
 
-            // Verify PDF has content (magic bytes for PDF)
+            // Verify PDF has valid content
             if ($fileExists) {
                 $content = file_get_contents($filepath);
                 $isPdf = strpos($content, '%PDF') === 0;
                 $this->assert(
                     $isPdf,
-                    "test_pdf_generation (PDF magic bytes)",
+                    "test_pdf_generation (valid PDF)",
                     "File should be valid PDF with %PDF header"
                 );
 

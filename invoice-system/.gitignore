@@ -19,6 +19,8 @@ data/test_invoices.json
 # Generated files
 invoice_*.html
 invoice_*.pdf
+downloads/*
+!downloads/.gitkeep
 
 # System files
 Thumbs.db
