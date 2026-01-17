@@ -296,8 +296,7 @@ class InvoiceTest {
                     "File should be valid PDF with %PDF header"
                 );
 
-                // Clean up test file
-                unlink($filepath);
+                // Keep the file to verify in downloads folder (don't cleanup)
             }
         } catch (\Exception $e) {
             $this->assert(
