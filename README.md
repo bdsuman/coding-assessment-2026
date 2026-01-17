@@ -98,7 +98,6 @@ invoice-system/
 
 ### PDF Generation
 - **Library:** FPDF 1.8.2 (via Composer)
-- **Previous:** Pure PHP implementation (replaced for better quality)
 - **Output:** Auto-save to `downloads/` folder
 - **Features:** Professional formatting, itemized layout, tax breakdown
 

@@ -1,6 +1,5 @@
 # Invoice System - Assessment Answers
 
-**Candidate:** [Your Name]  
 **Date:** January 17, 2026  
 **Project:** Invoice System Coding Assessment  
 **Final Status:** 30/30 tests passing ✅
@@ -222,8 +221,6 @@ php run_tests.php
 - ✅ Lightweight (< 50KB)
 - ✅ Simple API, easy to maintain
 - ✅ Generates valid PDF 1.3 documents
-- ❌ TCPDF rejected: requires ext-curl (not available)
-- ❌ Dompdf rejected: requires ext-dom (not available)
 
 **Outcome**: Successfully generating PDFs, all 4 PDF tests passing
 
