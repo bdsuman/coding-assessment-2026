@@ -39,6 +39,7 @@ class InvoiceTest {
         $this->test_input_validation();
         $this->test_calculate_subtotal_helper();
         $this->test_load_invoice_qty_mismatch();
+        $this->test_apply_discount_throws_exception();
 
         echo "\n" . str_repeat("=", 50) . "\n";
         echo "Tests Passed: " . $this->testsPassed . "\n";
@@ -515,6 +516,30 @@ class InvoiceTest {
                 unlink($testFile);
             }
         }
+    }
+
+    /**
+     * Test: applyDiscount throws exception (incomplete feature)
+     * Status: NEW - documents incomplete feature behavior
+     */
+    private function test_apply_discount_throws_exception() {
+        $invoice = new Invoice("Discount Test");
+        $invoice->addItem("Product", 100.00, 1);
+
+        $exceptionThrown = false;
+        $exceptionMessage = '';
+        try {
+            $invoice->applyDiscount(10);
+        } catch (\Exception $e) {
+            $exceptionThrown = true;
+            $exceptionMessage = $e->getMessage();
+        }
+
+        $this->assert(
+            $exceptionThrown,
+            "test_apply_discount_throws_exception",
+            "applyDiscount should throw Exception as documented"
+        );
     }
 }
 
